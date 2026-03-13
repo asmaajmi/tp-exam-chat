@@ -1,0 +1,67 @@
+name: CI — Build & Test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+
+  # ══════════════════════════════════════════════════════════════
+  # JOB 1 — BUILD & TEST BACKEND (Node.js + Express)
+  # ══════════════════════════════════════════════════════════════
+  backend:
+    name: 🧪 Backend — Build & Test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🐳 Build Docker image
+        run: docker build -t chat-backend:ci .
+
+      - name: 🧪 Run tests
+        run: npm test
+
+
+  # ══════════════════════════════════════════════════════════════
+  # JOB 2 — BUILD FRONTEND (HTML statique + nginx)
+  # ══════════════════════════════════════════════════════════════
+  frontend:
+    name: 🏗️ Frontend — Build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: ✅ Verify index.html exists
+        run: |
+          if [ ! -f index.html ]; then
+            echo "❌ index.html introuvable"
+            exit 1
+          fi
+          echo "✅ index.html trouvé"
+
+      - name: 🐳 Build Docker image
+        run: docker build -t chat-frontend:ci .

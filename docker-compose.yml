@@ -1,0 +1,22 @@
+version: "3.3"
+services:
+  backend:
+    build: ./backend
+    container_name: tp-backend
+    ports:
+      - "3000:3000" # Host:Container (Backend accessible on localhost:3000)
+    networks:
+      - webnet
+
+  frontend:
+    build: ./frontend
+    container_name: tp-frontend
+    ports:
+      - "8080:80" # Frontend accessible on localhost:8080
+    depends_on:
+      - backend
+    networks:
+      - webnet
+
+networks:
+  webnet: # Custom bridge network for communication
