@@ -14,11 +14,9 @@ jobs:
   backend:
     name: 🧪 Backend — Build & Test
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: backend
-
     steps:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
@@ -39,18 +37,15 @@ jobs:
       - name: 🧪 Run tests
         run: npm test
 
-
   # ══════════════════════════════════════════════════════════════
   # JOB 2 — BUILD FRONTEND (HTML statique + nginx)
   # ══════════════════════════════════════════════════════════════
   frontend:
     name: 🏗️ Frontend — Build
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: frontend
-
     steps:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
