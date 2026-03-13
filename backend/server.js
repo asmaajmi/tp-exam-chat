@@ -12,9 +12,7 @@ let messages = [];
 let nextId   = 1;
 
 // ── Middleware ───────────────────────────────────────────────────
-app.use(cors({
-  origin: 'https://tp-exam-chat-rjeaaxbbg-asmaajmis-projects.vercel.app'
-}));
+app.use(cors());
 app.use(express.json());                  // Parse JSON bodies
 
 // ── Health check ─────────────────────────────────────────────────
