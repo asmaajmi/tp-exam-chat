@@ -1,60 +1,99 @@
-name: CI — Build & Test
+name: CI - Build & Test
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 jobs:
-
-  # ══════════════════════════════════════════════════════════════
-  # JOB 1 — BUILD & TEST BACKEND (Node.js + Express)
-  # ══════════════════════════════════════════════════════════════
-  backend:
-    name: 🧪 Backend — Build & Test
+  build-and-test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
+
     steps:
-      - name: ⬇️ Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: 🟢 Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-      - name: 📦 Install dependencies
-        run: npm install
-
-      - name: 🐳 Build Docker image
-        run: docker build -t chat-backend:ci .
-
-      - name: 🧪 Run tests
-        run: npm test
-
-  # ══════════════════════════════════════════════════════════════
-  # JOB 2 — BUILD FRONTEND (HTML statique + nginx)
-  # ══════════════════════════════════════════════════════════════
-  frontend:
-    name: 🏗️ Frontend — Build
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - name: ⬇️ Checkout code
-        uses: actions/checkout@v4
-
-      - name: ✅ Verify index.html exists
+      - name: Install docker-compose
         run: |
-          if [ ! -f index.html ]; then
-            echo "❌ index.html introuvable"
+          sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose --version
+
+      - name: Build Docker Images
+        run: |
+          docker build -t tp-backend ./backend
+          docker build -t tp-frontend ./frontend
+
+      - name: Start services
+        run: |
+          docker-compose up -d
+
+      - name: Wait for backend
+        run: |
+          echo "Attente du backend (max 60s)..."
+          for i in {1..30}; do
+            if curl -f http://localhost:3000/ > /dev/null 2>&1; then
+              echo "Backend est prêt !"
+              break
+            fi
+            echo "En attente... ($i/30)"
+            sleep 2
+          done
+          if [ $i -eq 30 ]; then
+            echo "Timeout : backend non démarré"
             exit 1
           fi
-          echo "✅ index.html trouvé"
 
-      - name: 🐳 Build Docker image
-        run: docker build -t chat-frontend:ci .
+      - name: Wait for frontend
+        run: |
+          echo "Attente du frontend (max 60s)..."
+          for i in {1..30}; do
+            if curl -f http://localhost:8080/ > /dev/null 2>&1; then
+              echo "Frontend est prêt !"
+              break
+            fi
+            echo "En attente... ($i/30)"
+            sleep 2
+          done
+          if [ $i -eq 30 ]; then
+            echo "Timeout : frontend non démarré"
+            exit 1
+          fi
+
+      - name: Test Backend - Health check
+        run: |
+          echo "Test GET /"
+          curl -f http://localhost:3000/
+          echo ""
+          echo "✅ Backend répond correctement"
+
+      - name: Test Backend - GET /api/messages
+        run: |
+          echo "Test GET /api/messages"
+          RESPONSE=$(curl -f -s http://localhost:3000/api/messages)
+          echo "Réponse : $RESPONSE"
+          echo "✅ GET /api/messages OK"
+
+      - name: Test Backend - POST /api/messages
+        run: |
+          echo "Test POST /api/messages"
+          RESPONSE=$(curl -f -s -X POST http://localhost:3000/api/messages \
+            -H "Content-Type: application/json" \
+            -d '{"author":"CI-Bot","content":"Test automatique GitHub Actions"}')
+          echo "Réponse : $RESPONSE"
+          echo "✅ POST /api/messages OK"
+
+      - name: Test Frontend - Page accessible
+        run: |
+          echo "Test GET http://localhost:8080"
+          curl -f -s http://localhost:8080/ | grep -i "<title>" && echo "✅ Frontend HTML servi correctement"
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          echo "Logs des conteneurs :"
+          docker-compose logs
